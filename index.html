@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animal Classification Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        
+        #confetti-container {
+          z-index: 0;
+          pointer-events: none; /* Ensures clicks pass through */
+            }
+
+             #results-modal > div {
+              position: relative;
+              z-index: 1;
+              }
+
+              #play-again {
+               position: relative;
+               z-index: 2;
+             }
+
+        body{
+
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background-color: #e0f7fa;
+            overflow-x: hidden;
+        }
+        .animal-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            transform: rotate(-2deg);
+        }
+        .animal-card:nth-child(even) {
+            transform: rotate(2deg);
+        }
+        .animal-card:hover {
+            transform: rotate(0) scale(1.05);
+            box-shadow: 0 10px 15px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        .animal-card.selected {
+            transform: rotate(0) scale(1.1);
+            box-shadow: 0 0 0 3px #4f46e5, 0 10px 15px rgba(0,0,0,0.2);
+            z-index: 20;
+        }
+        .category-container {
+            min-height: 200px;
+            transition: all 0.3s ease;
+        }
+        .category-container.highlight {
+            background-color: rgba(255, 255, 255, 0.7);
+            transform: scale(1.03);
+        }
+        .progress-bar {
+            transition: width 0.5s ease;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .bounce {
+            animation: bounce 0.5s;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .floating {
+            animation: float 3s ease-in-out infinite;
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            opacity: 0;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+        .shake {
+            animation: shake 0.4s;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-indigo-700 mb-2">Animal Classification Game</h1>
+            <p class="text-xl text-indigo-600">Click on an animal, then click on the correct category!</p>
+        </header>
+
+        <!-- Progress Tracking -->
+        <div class="mb-6 bg-white rounded-full p-3 shadow-md">
+            <div class="flex items-center justify-between mb-2">
+                <span class="font-bold text-indigo-700">Progress:</span>
+                <span id="progress-text" class="font-bold text-indigo-700">0/9</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-4">
+                <div id="progress-bar" class="progress-bar bg-gradient-to-r from-green-400 to-blue-500 h-4 rounded-full" style="width: 0%"></div>
+            </div>
+        </div>
+        
+
+        <!-- Game Container -->
+        <div class="flex flex-col lg:flex-row gap-6">
+            <!-- Animals to Categorize -->
+            <div class="bg-white p-6 rounded-xl shadow-lg flex-1">
+                <h2 class="text-2xl font-bold text-center mb-4 text-indigo-700">Animals to Categorize</h2>
+                <div id="animals-container" class="flex flex-wrap justify-center gap-4">
+                    <!-- Animals will be dynamically added here -->
+                </div>
+            </div>
+
+            <!-- Categories -->
+            <div class="flex-1">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="category-drop-zone bg-red-100 p-4 rounded-xl shadow-md">
+                        <h3 class="text-xl font-bold text-center mb-2 text-red-700">Mammals</h3>
+                        <div id="mammals" class="category-container min-h-[200px] rounded-lg p-2 flex flex-wrap justify-center gap-2" data-category="mammal"></div>
+                    </div>
+                    <div class="category-drop-zone bg-green-100 p-4 rounded-xl shadow-md">
+                        <h3 class="text-xl font-bold text-center mb-2 text-green-700">Reptiles</h3>
+                        <div id="reptiles" class="category-container min-h-[200px] rounded-lg p-2 flex flex-wrap justify-center gap-2" data-category="reptile"></div>
+                    </div>
+                    <div class="category-drop-zone bg-blue-100 p-4 rounded-xl shadow-md">
+                        <h3 class="text-xl font-bold text-center mb-2 text-blue-700">Birds</h3>
+                        <div id="birds" class="category-container min-h-[200px] rounded-lg p-2 flex flex-wrap justify-center gap-2" data-category="bird"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions Panel -->
+        <div id="instructions" class="mt-6 bg-yellow-50 p-4 rounded-xl shadow-md text-center">
+            <p class="text-lg text-yellow-800">
+                <span id="instruction-text">Click on an animal to select it!</span>
+            </p>
+        </div>
+
+        <!-- Results Modal -->
+        <div id="results-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 text-center relative">
+                <div id="confetti-container" class="absolute inset-0 overflow-hidden"></div>
+                <h2 class="text-3xl font-bold text-indigo-700 mb-4">Great Job!</h2>
+                <p id="final-score" class="text-xl mb-6">You classified all animals correctly!</p>
+                <div class="mb-6">
+                    <svg class="w-24 h-24 mx-auto text-yellow-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                </div>
+                <button id="play-again" class="bg-indigo-600 text-white font-bold py-3 px-6 rounded-full hover:bg-indigo-700 transition-colors">
+                    Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animal data with categories
+            const animals = [
+                { id: 1, name: "Lion", category: "mammal", emoji: "🦁" },
+                { id: 2, name: "Elephant", category: "mammal", emoji: "🐘" },
+                { id: 3, name: "Monkey", category: "mammal", emoji: "🐒" },
+                { id: 4, name: "Snake", category: "reptile", emoji: "🐍" },
+                { id: 5, name: "Lizard", category: "reptile", emoji: "🦎" },
+                { id: 6, name: "Turtle", category: "reptile", emoji: "🐢" },
+                { id: 7, name: "Eagle", category: "bird", emoji: "🦅" },
+                { id: 8, name: "Penguin", category: "bird", emoji: "🐧" },
+                { id: 9, name: "Parrot", category: "bird", emoji: "🦜" }
+            ];
+
+            // Game state
+            let correctAnswers = 0;
+            let totalAnimals = animals.length;
+            let selectedAnimal = null;
+            const instructionText = document.getElementById('instruction-text');
+
+            // Shuffle animals
+            const shuffledAnimals = [...animals].sort(() => Math.random() - 0.5);
+
+            // Create animal cards
+            const animalsContainer = document.getElementById('animals-container');
+            
+            shuffledAnimals.forEach(animal => {
+                const animalCard = document.createElement('div');
+                animalCard.className = 'animal-card bg-yellow-50 p-4 rounded-lg shadow-md text-center w-24 h-32 flex flex-col items-center justify-center';
+                animalCard.setAttribute('data-id', animal.id);
+                animalCard.setAttribute('data-category', animal.category);
+                
+                const emoji = document.createElement('div');
+                emoji.className = 'text-4xl mb-2';
+                emoji.textContent = animal.emoji;
+                
+                const name = document.createElement('div');
+                name.className = 'font-bold text-gray-800';
+                name.textContent = animal.name;
+                
+                animalCard.appendChild(emoji);
+                animalCard.appendChild(name);
+                
+                // Click to select
+                animalCard.addEventListener('click', function() {
+                    // If already placed in a category, don't allow selection
+                    if (this.parentElement.classList.contains('category-container')) {
+                        return;
+                    }
+                    
+                    // Deselect any previously selected animal
+                    if (selectedAnimal) {
+                        selectedAnimal.classList.remove('selected');
+                    }
+                    
+                    // Select this animal
+                    this.classList.add('selected');
+                    selectedAnimal = this;
+                    
+                    // Update instruction
+                    instructionText.textContent =' Now click on the correct category for ${animal.name}!';
+                    
+                    // Highlight category containers
+                    document.querySelectorAll('.category-container').forEach(container => {
+                        container.classList.add('highlight');
+                    });
+                });
+                
+                animalsContainer.appendChild(animalCard);
+            });
+
+            // Set up category containers
+            const categoryContainers = document.querySelectorAll('.category-container');
+            
+            categoryContainers.forEach(container => {
+                container.addEventListener('click', function() {
+                    // Only proceed if an animal is selected
+                    if (!selectedAnimal) {
+                        instructionText.textContent = "First, click on an animal to select it!";
+                        return;
+                    }
+                    
+                    const animalCategory = selectedAnimal.dataset.category;
+                    const targetCategory = this.dataset.category;
+                    
+                    // Remove highlights from all containers
+                    document.querySelectorAll('.category-container').forEach(cont => {
+                        cont.classList.remove('highlight');
+                    });
+                    
+                    // Check if correct category
+                    if (animalCategory === targetCategory) {
+                        // Correct placement
+                        this.appendChild(selectedAnimal);
+                        selectedAnimal.classList.remove('selected');
+                        selectedAnimal.classList.add('bounce');
+                        correctAnswers++;
+                        updateProgress();
+                        
+                        // Add success effect
+                        const successEmoji = document.createElement('div');
+                        successEmoji.textContent = '✅';
+                        successEmoji.className = 'absolute text-2xl -top-2 -right-2 transform scale-0 origin-center';
+                        selectedAnimal.style.position = 'relative';
+                        selectedAnimal.appendChild(successEmoji);
+                        
+                        setTimeout(() => {
+                            successEmoji.style.transform = 'scale(1)';
+                            successEmoji.style.transition = 'transform 0.3s ease';
+                        }, 50);
+                        
+                        // Reset selection
+                        selectedAnimal = null;
+                        instructionText.textContent = "Great job! Click another animal to continue.";
+                    } else {
+                        // Wrong placement - shake and keep selected
+                        selectedAnimal.classList.add('shake');
+                        
+                        // Create error indicator that fades away
+                        const errorEmoji = document.createElement('div');
+                        errorEmoji.textContent = '❌';
+                        errorEmoji.className = 'absolute text-2xl top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10';
+                        errorEmoji.style.opacity = '0';
+                        selectedAnimal.style.position = 'relative';
+                        selectedAnimal.appendChild(errorEmoji);
+                        
+                        // Animate error
+                        setTimeout(() => {
+                            errorEmoji.style.opacity = '1';
+                            errorEmoji.style.transition = 'opacity 0.3s ease';
+                        }, 50);
+                        
+                        setTimeout(() => {
+                            selectedAnimal.classList.remove('shake');
+                            errorEmoji.remove();
+                        }, 800);
+                        
+                        instructionText.textContent = "Try again! That's not the right category.";
+                    }
+                    
+                    // Check if game is complete
+                    if (correctAnswers === totalAnimals) {
+                        setTimeout(showResults, 1000);
+                    }
+                });
+            });
+
+            // Update progress bar
+            function updateProgress() {
+                const progressBar = document.getElementById('progress-bar');
+                const progressText = document.getElementById('progress-text');
+                const percentage = (correctAnswers / totalAnimals) * 100;
+                
+                progressBar.style.width = '${percentage}%';
+                progressText.textContent = '${correctAnswers}/${totalAnimals}';
+            }
+
+            // Show results modal with confetti
+            function showResults() {
+                const resultsModal = document.getElementById('results-modal');
+                resultsModal.classList.remove('hidden');
+                instructionText.textContent = "You did it! All animals are correctly classified!";
+                
+                // Create confetti
+                const confettiContainer = document.getElementById('confetti-container');
+                const colors = ['#FFC700', '#FF0058', '#2BD1FC', '#F19CBB', '#8A2BE2'];
+                
+                for (let i = 0; i < 100; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.left = '${Math.random() * 100}%';
+                    confetti.style.top = '${Math.random() * 100}%';
+                    confetti.style.transform = 'rotate(${Math.random() * 360}deg)';
+                    
+                    confettiContainer.appendChild(confetti);
+                    
+                    // Animate confetti
+                    setTimeout(() => {
+                        confetti.style.opacity = '1';
+                        confetti.style.transform = 'translateY(${Math.random() * 200 - 150}px) rotate(${Math.random() * 360}deg)';
+                        confetti.style.transition =' opacity 0.5s ease, transform ${Math.random() * 3 + 2}s ease';
+                    }, Math.random() * 500);
+                    
+                    setTimeout(() => {
+                        confetti.style.opacity = '0';
+                    }, Math.random() * 3000 + 2000);
+                }
+            }
+
+            // Play again button
+            document.getElementById('play-again').addEventListener('click', function() {
+                location.reload();
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9687234fe2b51b64',t:'MTc1NDA3MDIwOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
